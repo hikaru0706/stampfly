@@ -29,7 +29,11 @@ esp_err_t WS2812_HAL::setColor(uint8_t red, uint8_t green, uint8_t blue) {
 
     // データ送信
     ESP_ERROR_CHECK(rmt_write_items(_rmt_channel, items, 24, true));
+    printf("RMT write completed.\n");
+
     ESP_ERROR_CHECK(rmt_wait_tx_done(_rmt_channel, portMAX_DELAY));
+    printf("RMT transmission done.\n");
+
 
     // リセット送信(LEDにデータを反映)
     sendReset();
@@ -38,6 +42,8 @@ esp_err_t WS2812_HAL::setColor(uint8_t red, uint8_t green, uint8_t blue) {
 }
 
 void WS2812_HAL::fillItemsForColor(rmt_item32_t* items, uint8_t green, uint8_t red, uint8_t blue) {
+    printf("Converting colors: G=%d, R=%d, B=%d\n", green, red, blue);
+
     uint8_t colors[3] = {green, red, blue};
     int index = 0;
 
