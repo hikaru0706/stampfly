@@ -1,6 +1,9 @@
 // ws2812_hal.cpp
 #include "ws2812.hpp"
 #include "esp_check.h"
+#include "esp32s3/rom/ets_sys.h"
+#include "esp_timer.h"
+
 
 WS2812_HAL::WS2812_HAL(gpio_num_t gpio_pin, rmt_channel_t rmt_channel, uint8_t clk_div)
 : _gpio_pin(gpio_pin),
@@ -67,9 +70,14 @@ void WS2812_HAL::fillItemsForColor(rmt_item32_t* items, uint8_t green, uint8_t r
         }
     }
 }
+void delayMicrosecondsWithEspTimer(uint32_t delay_us) {
+    uint64_t start_time = esp_timer_get_time(); // 現在時刻を取得
+    while ((esp_timer_get_time() - start_time) < delay_us) {
+        // 待機
+    }
+}
 
+// 使用例
 void WS2812_HAL::sendReset() {
-    // WS2812のリセットは、50µs以上LOWを維持すればよいとされている
-    // RMTで特に信号を送らず、ここで単純にdelayで対応する
-    vTaskDelay(pdMS_TO_TICKS(WS2812_RESET_US));
+    delayMicrosecondsWithEspTimer(100); // 50µs以上の間隔を開ける
 }

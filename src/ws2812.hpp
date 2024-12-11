@@ -28,7 +28,7 @@ private:
     static constexpr uint32_t WS2812_T0L_NS = 800;
     static constexpr uint32_t WS2812_T1H_NS = 700;
     static constexpr uint32_t WS2812_T1L_NS = 600;
-    static constexpr uint32_t WS2812_RESET_US = 50; // reset期間(µs)
+    static constexpr uint32_t WS2812_RESET_US = 0; // reset期間(µs)
 
     // RMT用の1tickあたりのnsを計算するのに使用する
     // RMTは80MHzが基本クロック、clk_divで分周するのでtickは (1/80MHz)*div [s] = (12.5ns * div)
