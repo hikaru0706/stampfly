@@ -1,58 +1,55 @@
 #include <Arduino.h>
-#include <Wire.h>
-#include "vl53lx_class.h"
+#include "vl53l3cx.hpp"
 
-#define SDA_PIN 13
-#define SCL_PIN 15
-#define XSHUT_PIN 14
-
-VL53LX sensor(&Wire, XSHUT_PIN);
+VL53LX_Dev_t dev;
+VL53LX_DEV   Dev = &dev;
 
 void setup() {
-  Serial.begin(115200);
+    Serial.begin(115200);
 
-  // I2Cを初期化
-  Wire.begin(SDA_PIN, SCL_PIN);
+    Serial.println("Starting setup ...");
 
-  // シャットダウンピン設定
-  pinMode(XSHUT_PIN, OUTPUT);
-  digitalWrite(XSHUT_PIN, HIGH);
+    // I2C 初期化
+        // I2C 初期化
+    if (!Wire1.begin(SDA_PIN, SCL_PIN,400000UL)) {
+        Serial.println("I2C initialization failed! Halting.");
+        while (true) { delay(100); }
+    }
+    Serial.println("I2C initialized.");
 
-  if (sensor.VL53LX_SetDeviceAddress(0x52) != 0) {
-    Serial.println("Failed to set I2C address");
-  } else {
-    Serial.println("I2C address set to 0x52");
-  }
 
-  // センサーをオン (ライブラリによっては begin() が存在するかも)
-  sensor.VL53LX_On();
-  // sensor.begin(); // もし begin() があれば
-  delay(50);
+
+    // I2C デバイススキャン
+    if (scan_i2c() == 0) {
+        Serial.println("No I2C devices found. Halting.");
+        while (true) { delay(100); }
+    }
+
+    // VL53L3CX センサー初期化
+    if (!VL53L3CX_Init(Dev)) {
+        Serial.println("Failed to initialize VL53L3CX. Halting.");
+        while (true) { delay(100); }
+    }
 }
 
 void loop() {
-  VL53LX_MultiRangingData_t rangingData;
+    static unsigned long lastMillis = 0;
+    unsigned long currentMillis = millis();
 
-  // 計測開始
-  if (sensor.VL53LX_StartMeasurement() != 0) {
-    Serial.println("Failed to start measurement");
-    return;
-  }
+    // デバッグ用: ループのタイミング確認
+    Serial.print("Loop interval: ");
+    Serial.println(currentMillis - lastMillis);
+    lastMillis = currentMillis;
 
-  // 計測結果取得
-  if (sensor.VL53LX_GetMultiRangingData(&rangingData) != 0) {
-    Serial.println("Failed to get measurement data");
-    return;
-  }
+    // 測距データ取得
+    int16_t distance = VL53L3CX_ReadDistance(Dev);
+    if (distance >= 0) {
+        Serial.print("Distance: ");
+        Serial.print(distance);
+        Serial.println(" mm");
+    } else {
+        Serial.println("Failed to read distance.");
+    }
 
-  if (rangingData.NumberOfObjectsFound > 0) {
-    int distance = rangingData.RangeData[0].RangeMilliMeter;
-    Serial.print("Distance: ");
-    Serial.print(distance);
-    Serial.println(" mm");
-  } else {
-    Serial.println("No object detected");
-  }
-
-  delay(500);
+    delay(500);
 }
