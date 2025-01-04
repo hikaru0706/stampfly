@@ -1,54 +1,60 @@
-#include <Arduino.h>
-#include "vl53l3cx.hpp"
+#include <Arduino.h>  // Arduinoの基本機能
+#include <Wire.h>     // I2C通信
+#include "vl53lx_api.h"  // VL53L3CX用API
+#include "vl53lx_platform.h"  // プラットフォーム固有の設定
+#include "vl53l3cx.hpp"  // センサーの初期化/操作用ヘッダー
+#include <stdio.h>
 
-VL53LX_Dev_t dev;
-VL53LX_DEV   Dev = &dev;
+// I2Cおよびセンサーピンの定義
+#define SDA_PIN 3
+#define SCL_PIN 4
+#define XSHUT_FRONT_PIN 7
+#define XSHUT_BOTTOM_PIN 9
 
 void setup() {
     Serial.begin(115200);
-
-    Serial.println("Starting setup ...");
+    delay(5000); //安定化
+    printf("Setup started...\n");
 
     // I2C 初期化
-        // I2C 初期化
-    if (!Wire1.begin(SDA_PIN, SCL_PIN,400000UL)) {
-        Serial.println("I2C initialization failed! Halting.");
-        while (true) { delay(100); }
-    }
-    Serial.println("I2C initialized.");
-
-
-
+    Wire1.begin(SDA_PIN, SCL_PIN,400000U);  // SDAとSCLピンを指定して初期化
+    printf("I2C initialized.\n");
+    delay(2000); // バス安定化のための短い遅延
     // I2C デバイススキャン
     if (scan_i2c() == 0) {
-        Serial.println("No I2C devices found. Halting.");
+        printf("No I2C devices found. Halting.");
         while (true) { delay(100); }
     }
 
-    // VL53L3CX センサー初期化
-    if (!VL53L3CX_Init(Dev)) {
-        Serial.println("Failed to initialize VL53L3CX. Halting.");
+    // フロントセンサーの初期化
+    if (!VL53L3CX_Init(Dev_Front, XSHUT_FRONT_PIN, 0x54)) {
+        printf("Failed to initialize Front sensor. Halting.\n");
         while (true) { delay(100); }
     }
+
+    // // ボトムセンサーの初期化
+    if (!VL53L3CX_Init(Dev_Bottom, XSHUT_BOTTOM_PIN)) {
+        printf("Failed to initialize Bottom sensor. Halting.\n");
+        while (true) { delay(100); }
+    }
+
+    printf("Both sensors initialized successfully.\n");
 }
 
 void loop() {
-    static unsigned long lastMillis = 0;
-    unsigned long currentMillis = millis();
+    int16_t distance_front = VL53L3CX_ReadDistance(Dev_Front);
+    int16_t distance_bottom = VL53L3CX_ReadDistance(Dev_Bottom);
 
-    // デバッグ用: ループのタイミング確認
-    Serial.print("Loop interval: ");
-    Serial.println(currentMillis - lastMillis);
-    lastMillis = currentMillis;
-
-    // 測距データ取得
-    int16_t distance = VL53L3CX_ReadDistance(Dev);
-    if (distance >= 0) {
-        Serial.print("Distance: ");
-        Serial.print(distance);
-        Serial.println(" mm");
+    if (distance_front >= 0) {
+        printf("Front Distance: %d mm\n", distance_front); // 数値を表示
     } else {
-        Serial.println("Failed to read distance.");
+        printf("Failed to read Front distance. :%d \n",distance_front);
+    }
+
+    if (distance_bottom >= 0) {
+        printf("Bottom Distance: %d mm\n",distance_bottom);
+    } else {
+        printf("Failed to read Bottom distance. :%d \n",distance_bottom);
     }
 
     delay(500);
