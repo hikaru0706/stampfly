@@ -8,32 +8,38 @@
 // I2Cおよびセンサーピンの定義
 #define SDA_PIN 3
 #define SCL_PIN 4
+
+#define INTERRUPT_FRONT_PIN 6
 #define XSHUT_FRONT_PIN 7
+#define INTERRUPT_BOTTOM_PIN 8
 #define XSHUT_BOTTOM_PIN 9
 
 void setup() {
     Serial.begin(115200);
-    delay(5000); //安定化
+    delay(2000); //安定化
     printf("Setup started...\n");
 
     // I2C 初期化
-    Wire1.begin(SDA_PIN, SCL_PIN,400000U);  // SDAとSCLピンを指定して初期化
+    Wire1.begin(SDA_PIN, SCL_PIN,400000UL);  // SDAとSCLピンを指定して初期化
     printf("I2C initialized.\n");
-    delay(2000); // バス安定化のための短い遅延
+    delay(500); // バス安定化のための短い遅延
     // I2C デバイススキャン
     if (scan_i2c() == 0) {
         printf("No I2C devices found. Halting.");
         while (true) { delay(100); }
     }
-
+    digitalWrite(XSHUT_BOTTOM_PIN,LOW);
+    delay(10);
     // フロントセンサーの初期化
-    if (!VL53L3CX_Init(Dev_Front, XSHUT_FRONT_PIN, 0x54)) {
+    if (!VL53L3CX_Init(Dev_Front, XSHUT_FRONT_PIN,INTERRUPT_FRONT_PIN, 0x2A)) {
         printf("Failed to initialize Front sensor. Halting.\n");
         while (true) { delay(100); }
     }
 
+    digitalWrite(XSHUT_BOTTOM_PIN,HIGH);
+    delay(10);
     // // ボトムセンサーの初期化
-    if (!VL53L3CX_Init(Dev_Bottom, XSHUT_BOTTOM_PIN)) {
+    if (!VL53L3CX_Init(Dev_Bottom, XSHUT_BOTTOM_PIN,INTERRUPT_BOTTOM_PIN,0x29)) {
         printf("Failed to initialize Bottom sensor. Halting.\n");
         while (true) { delay(100); }
     }

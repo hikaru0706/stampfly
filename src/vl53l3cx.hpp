@@ -16,7 +16,7 @@ extern VL53LX_DEV Dev_Front, Dev_Bottom;
 
 // プロトタイプ宣言
 uint8_t scan_i2c();
-bool VL53L3CX_Init(VL53LX_DEV Dev, uint8_t xshut_pin, uint8_t new_address = 0x29);
+bool VL53L3CX_Init(VL53LX_DEV Dev, uint8_t xshut_pin, uint8_t interrupt_pin, uint8_t new_address = 0x29);
 int16_t VL53L3CX_ReadDistance(VL53LX_DEV Dev);
 
 #endif // VL53L3CX_HPP

@@ -6,9 +6,8 @@ VL53LX_DEV Dev_Front = &dev_front;
 VL53LX_DEV Dev_Bottom = &dev_bottom;
 
 
-// XSHUT ピン番号
-#define XSHUT_FRONT_PIN 7
-#define XSHUT_BOTTOM_PIN 9
+void IRAM_ATTR tof_int() {
+}
 
 uint8_t scan_i2c() {
     printf("I2C scanner. Scanning...\n");
@@ -32,46 +31,75 @@ uint8_t scan_i2c() {
     return count;
 }
 
-bool VL53L3CX_Init(VL53LX_DEV Dev, uint8_t xshut_pin, uint8_t new_address) {
-    printf("Initializing VL53L3CX...");
+bool VL53L3CX_Init(VL53LX_DEV Dev, uint8_t xshut_pin, uint8_t interrupt_pin, uint8_t new_address) {
+    printf("Initializing VL53L3CX...\n");
 
+    // XSHUT ピンを初期化してリセット
     pinMode(xshut_pin, OUTPUT);
     digitalWrite(xshut_pin, LOW); // センサーをリセット
     delay(10);
     digitalWrite(xshut_pin, HIGH); // センサーを有効化
-    delay(10);
+    delay(100); // センサー起動待機
 
-    // I2C 設定
-    Dev->I2cDevAddr = 0x29;
-    Dev->comms_type = 1;
+    // 割り込みピンを入力モードで初期化
+    pinMode(interrupt_pin, INPUT);
+
+    // デバイスの基本設定
+    Dev->i2c_slave_address = 0x29;
     Dev->comms_speed_khz = 400;
 
-    // センサー初期化
+    // センサー起動確認
     int status = VL53LX_WaitDeviceBooted(Dev);
     if (status != VL53LX_ERROR_NONE) {
-        printf("Failed to wait for device booted.");
+        printf("Failed to wait for device booted. Status: %d\n", status);
         return false;
     }
 
+    // センサー初期化
     status = VL53LX_DataInit(Dev);
     if (status != VL53LX_ERROR_NONE) {
-        printf("Failed to initialize VL53L3CX sensor.");
+        printf("Failed to initialize VL53L3CX sensor. Status: %d\n", status);
         return false;
     }
 
-    // I2C アドレスを変更（必要であれば）
+    // 必要に応じて I2C アドレスを変更
     if (new_address != 0x29) {
         status = VL53LX_SetDeviceAddress(Dev, new_address);
         if (status != VL53LX_ERROR_NONE) {
-            printf("Failed to set new I2C address.");
+            printf("Failed to set new I2C address. Status: %d\n", status);
             return false;
         }
-        Dev->I2cDevAddr = new_address;
+        Dev->i2c_slave_address = new_address;
     }
 
-    printf("VL53L3CX initialized successfully.");
+    // 距離測定モードとタイミング設定
+    status = VL53LX_SetDistanceMode(Dev, VL53LX_DISTANCEMODE_MEDIUM);
+    if (status != VL53LX_ERROR_NONE) {
+        printf("Failed to set distance mode. Status: %d\n", status);
+        return false;
+    }
+
+    status = VL53LX_SetMeasurementTimingBudgetMicroSeconds(Dev, 33000); // 33ms
+    if (status != VL53LX_ERROR_NONE) {
+        printf("Failed to set timing budget. Status: %d\n", status);
+        return false;
+    }
+
+    // 割り込みの初期化と動作確認
+    attachInterrupt(digitalPinToInterrupt(interrupt_pin), &tof_int, FALLING);
+
+    // 測定開始
+    status = VL53LX_ClearInterruptAndStartMeasurement(Dev);
+    if (status != VL53LX_ERROR_NONE) {
+        printf("Failed to start measurement. Status: %d\n", status);
+        return false;
+    }
+
+    printf("VL53L3CX initialized successfully.\n");
     return true;
 }
+
+
 int16_t VL53L3CX_ReadDistance(VL53LX_DEV Dev) {
     VL53LX_MultiRangingData_t rangingData;
     uint8_t dataReady = 0;
@@ -97,11 +125,11 @@ int16_t VL53L3CX_ReadDistance(VL53LX_DEV Dev) {
             break;
         }
         // タイムアウト (例: 500ms) を設ける
-        if (millis() - startMs > 500) {
+        if (millis() - startMs > 10000) {
             printf("Measurement timeout.\n");
             return -1;
         }
-        delay(5); // ポーリング間隔
+        delay(5000); // ポーリング間隔
     }
 
     // 測定結果を読み出す
